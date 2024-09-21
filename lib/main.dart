@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:newbietrainee/models/post_model.dart';
+import 'package:newbietrainee/network.dart';
+import 'package:newbietrainee/theme.dart';
+import 'package:newbietrainee/util.dart';
 
 void main() {
   runApp(const MyApp());
@@ -9,11 +13,18 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = View.of(context).platformDispatcher.platformBrightness;
+
+    // Retrieves the default theme for the platform
+    //TextTheme textTheme = Theme.of(context).textTheme;
+
+    // Use with Google Fonts package to use downloadable fonts
+    TextTheme textTheme = createTextTheme(context, "Inter", "Inter");
+
+    MaterialTheme theme = MaterialTheme(textTheme);
     return MaterialApp(
       title: 'Flutter Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
+      theme: brightness == Brightness.light ? theme.light() : theme.dark(),
       home: LoginPage(),
     );
   }
@@ -28,65 +39,60 @@ class LoginPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: Colors.purple,
         body: Center(
-          child: SizedBox(
-            width: MediaQuery.of(context).size.width * .8,
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const FlutterLogo(),
-                  CustomTextField(
-                    controller: emailController,
-                    validator: (item) {
-                      if (item?.contains('@') ?? false) {
-                        return null;
-                      }
-                      return 'Lütfen geçerli bir mail giriniz';
-                    },
-                    label: 'email',
-                  ),
-                  const Divider(),
-                  CustomTextField(
-                      isPasswordField: true,
-                      controller: passwordController,
-                      validator: (item) {
-                        if (item?.isNotEmpty ?? false) {
-                          return null;
-                        }
-                        return 'Parola boş olamaz';
-                      },
-                      label: 'pasword'),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
-                    ),
-                    onPressed: () {
-                      if (formKey.currentState?.validate() ?? false) {
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(builder: (_) => const BlankPage()),
-                        );
-                      }
-                    },
-                    child: const Text('login'),
-                  ),
-                  GestureDetector(
-                    onTap: () {},
-                    child: const Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text(
-                        'şifremi unuttum',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  )
-                ],
+      child: SizedBox(
+        width: MediaQuery.of(context).size.width * .8,
+        child: Form(
+          key: formKey,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const FlutterLogo(),
+              CustomTextField(
+                controller: emailController,
+                validator: (item) {
+                  if (item?.contains('@') ?? false) {
+                    return null;
+                  }
+                  return 'Lütfen geçerli bir mail giriniz';
+                },
+                label: 'email',
               ),
-            ),
+              const Divider(),
+              CustomTextField(
+                  isPasswordField: true,
+                  controller: passwordController,
+                  validator: (item) {
+                    if (item?.isNotEmpty ?? false) {
+                      return null;
+                    }
+                    return 'Parola boş olamaz';
+                  },
+                  label: 'pasword'),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                onPressed: () {
+                  if (formKey.currentState?.validate() ?? false) {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (_) => const BlankPage()),
+                    );
+                  }
+                },
+                child: const Text('login'),
+              ),
+              TextButton(
+                onPressed: () {},
+                child: const Text(
+                  'şifremi unuttum',
+                ),
+              )
+            ],
           ),
-        ));
+        ),
+      ),
+    ));
   }
 }
 
@@ -152,11 +158,97 @@ class _CustomTextFieldState extends State<CustomTextField> {
   }
 }
 
-class BlankPage extends StatelessWidget {
+class BlankPage extends StatefulWidget {
   const BlankPage({super.key});
 
   @override
+  State<BlankPage> createState() => _BlankPageState();
+}
+
+class _BlankPageState extends State<BlankPage> {
+  List<PostModel> response = [];
+
+  bool isLoading = false;
+
+  @override
   Widget build(BuildContext context) {
-    return const Scaffold();
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => LoginPage()));
+            }
+          },
+          icon: const Icon(Icons.arrow_back),
+        ),
+        title: const Text('Blank Page'),
+        actions: [
+          IconButton(
+            onPressed: () {
+              showMenu(
+                context: context,
+                position: const RelativeRect.fromLTRB(1, 100, 0, 0),
+                items: [
+                  const PopupMenuItem(
+                    child: Text('item 1'),
+                  ),
+                  const PopupMenuItem(
+                    child: Text('item 2'),
+                  ),
+                  const PopupMenuItem(
+                    child: Text('item 3'),
+                  ),
+                ],
+              );
+            },
+            icon: const Icon(Icons.apps_rounded),
+          )
+        ],
+      ),
+      body: SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (!isLoading)
+                Flexible(
+                  child: ListView.builder(
+                    itemCount: response.length,
+                    shrinkWrap: true,
+                    itemBuilder: (context, index) {
+                      return ListTile(
+                        title: Text(
+                          response[index].title ?? '',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        subtitle: Text(response[index].body ?? ''),
+                      );
+                    },
+                  ),
+                ),
+              if (isLoading) const CircularProgressIndicator.adaptive(),
+              ElevatedButton(
+                onPressed: () async {
+                  setState(() {
+                    isLoading = true;
+                  });
+                  await Future.delayed(const Duration(seconds: 2));
+                  var res = await NetworkLayer().getList();
+                  setState(() {
+                    response = res;
+                    isLoading = false;
+                  });
+                },
+                child: const Text('getPosts'),
+              )
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
